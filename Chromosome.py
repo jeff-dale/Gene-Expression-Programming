@@ -1,6 +1,7 @@
 from lib.anytree.node import Node
 from lib.anytree.render import RenderTree
 
+import numpy as np
 from random import randint
 
 
@@ -18,6 +19,7 @@ class Chromosome:
 
     # list of real-valued tuples of the form (x, f(x))
     fitness_cases = []
+    max_fitness = None
 
 
     def __init__(self, genes: list):
@@ -40,7 +42,7 @@ class Chromosome:
         self.genes = genes
         self.trees = []
         self._values_ = {}
-
+        self._fitness_ = None
 
     # TODO - put informative error message when terminal_values doesn't have enough entries
     def evaluate(self, terminal_values: dict) -> float:
@@ -81,6 +83,12 @@ class Chromosome:
 
         # noinspection PyTypeChecker
         return self._values_[value_fingerprint]
+
+
+    def fitness(self):
+        if self._fitness_ is not None:
+            return self._fitness_
+        raise ValueError("Fitness of chromosome has not been properly calculated.")
 
 
     def print_tree(self):
@@ -152,27 +160,38 @@ class Chromosome:
 
 
     @staticmethod
-    def absolute_fitness(M: float, *args) -> list:
+    # TODO - calculate using numpy arrays for speed
+    def absolute_fitness(M: float, *args) -> np.ndarray:
         """
-        Calculate absolute fitness of an arbitrary number of genes.
+        Calculate absolute fitness of an arbitrary number of Chromosomes.
 
         :param M: range of fitness function over domain
         :param args: any number of gene objects
-        :return: list of fitnesses of corresponding genes
+        :return: list of fitnesses of corresponding chromosomes
         """
         fitnesses = []
-        for gene in args:
-            fitness = 0
-            for j in range(len(Chromosome.fitness_cases)):
-                C_ij = gene.evaluate(Chromosome.fitness_cases[j][0])
-                T_j = Chromosome.fitness_cases[j][1]
-                fitness += M - (C_ij - T_j)
-            fitnesses.append(fitness)
-        return fitnesses
+        for chromosome in args:
+            # memoize fitness values
+            if chromosome._fitness_ is not None:
+                fitnesses.append(chromosome._fitness_)
+            else:
+                fitness = 0
+                for j in range(len(Chromosome.fitness_cases)):
+                    C_ij = chromosome.evaluate(Chromosome.fitness_cases[j][0])
+                    # assign any chromosome that divides by zero a fitness value of zero
+                    if np.isnan(C_ij) or np.isinf(C_ij) or np.isneginf(C_ij):
+                        fitness = 0
+                        break
+                    T_j = Chromosome.fitness_cases[j][1]
+                    fitness += M - abs(C_ij - T_j)
+                chromosome._fitness_ = fitness
+                fitnesses.append(fitness)
+        return np.asarray(fitnesses)
 
 
     @staticmethod
-    def relative_fitness(M: float, *args) -> list:
+    # TODO - calculate using numpy arrays for speed
+    def relative_fitness(M: float, *args) -> np.ndarray:
         """
         Calculate relative fitness of an arbitrary number of genes.
 
@@ -181,14 +200,19 @@ class Chromosome:
         :return: list of fitnesses of corresponding genes
         """
         fitnesses = []
-        for gene in args:
-            fitness = 0
-            for j in range(len(Chromosome.fitness_cases)):
-                C_ij = gene.evaluate(Chromosome.fitness_cases[j][0])
-                T_j = Chromosome.fitness_cases[j][1]
-                fitness += M - 100*abs(C_ij / T_j - 1)
-            fitnesses.append(fitness)
-        return fitnesses
+        for chromosome in args:
+            # memoize fitness values
+            if chromosome._fitness_ is not None:
+                fitnesses.append(chromosome._fitness_)
+            else:
+                fitness = 0
+                for j in range(len(Chromosome.fitness_cases)):
+                    C_ij = chromosome.evaluate(Chromosome.fitness_cases[j][0])
+                    T_j = Chromosome.fitness_cases[j][1]
+                    fitness += M - 100*abs(C_ij / T_j - 1)
+                chromosome._fitness_ = fitness
+                fitnesses.append(fitness)
+        return np.asarray(fitnesses)
 
 
     @staticmethod
@@ -198,12 +222,13 @@ class Chromosome:
         :return: string of valid characters
         """
         possible_chars = list(Chromosome.functions.keys()) + Chromosome.terminals
-        return "".join([possible_chars[randint(0, len(possible_chars) - 1)] for _ in range(Chromosome.length)])
+        head = "".join([possible_chars[randint(0, len(possible_chars) - 1)] for _ in range(Chromosome.head_length)])
+        tail = "".join([Chromosome.terminals[randint(0, len(Chromosome.terminals) - 1)] for _ in range(Chromosome.length - Chromosome.head_length)])
+        return head + tail
 
 
     @staticmethod
-    # TODO - figure out how to make return annotation more specific
-    def generate_random_individual() -> object:
+    def generate_random_individual() -> 'Chromosome':
         """
         Generates one random individual based on settings specified in Chromosome class.
         :return: new Chromosome

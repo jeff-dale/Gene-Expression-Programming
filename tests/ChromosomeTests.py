@@ -22,6 +22,7 @@ class ChromosomeTests(unittest.TestCase):
         Chromosome.functions = self.F
         Chromosome.terminals = self.T
         Chromosome.head_length = self.HEAD_LENGTH
+        Chromosome.num_genes = 1
         Chromosome.fitness_cases = [(a, self.objective_function(a)) for a in np.random.rand(10) * 20]
 
     def test_build_tree1(self):
@@ -60,6 +61,7 @@ class ChromosomeTests(unittest.TestCase):
 
     def test_evaluate2(self):
         Chromosome.linking_function = "+"
+        Chromosome.num_genes = 2
         c1 = Chromosome(["Q*Q+bbaaa", "*-babaabb"])
         assert(
             c1.evaluate(terminal_values={
@@ -70,6 +72,7 @@ class ChromosomeTests(unittest.TestCase):
 
     def test_evaluate3(self):
         Chromosome.linking_function = "-"
+        Chromosome.num_genes = 2
         c1 = Chromosome(["Q*Q+bbaaa", "*-babaabb"])
         assert (
             c1.evaluate(terminal_values={
