@@ -1,4 +1,7 @@
 from lib.anytree.node import Node
+from lib.anytree.render import RenderTree
+
+from random import randint
 
 
 class Chromosome:
@@ -9,7 +12,9 @@ class Chromosome:
     linking_function = None
 
     # length of head of chromosome
-    head_length = None
+    num_genes = 3
+    head_length = 6
+    length = 39
 
     # list of real-valued tuples of the form (x, f(x))
     fitness_cases = []
@@ -22,18 +27,22 @@ class Chromosome:
             raise ValueError("Chromosome class has no functions associated with it.")
         if len(Chromosome.terminals) == 0:
             raise ValueError("Chromosome class has no terminals associated with it.")
+        if Chromosome.length is None:
+            raise ValueError("Chromosome class has no length defined.")
         if Chromosome.head_length is None:
             raise ValueError("Chromosome class has no head length defined.")
         if Chromosome.linking_function is None and len(genes) > 1:
             raise ValueError("Multigenic chromosome defined with no linking function.")
+        if len(genes) != Chromosome.num_genes:
+            raise ValueError("Number of genes does not match excpected value in class level variable.")
 
         # initialize chromosomes
         self.genes = genes
-        self.num_genes = len(self.genes)
         self.trees = []
-        self.value = None
+        self._values_ = {}
 
 
+    # TODO - put informative error message when terminal_values doesn't have enough entries
     def evaluate(self, terminal_values: dict) -> float:
         """
         Returns the result of evaluating the given chromosome for specified fitness cases.
@@ -46,8 +55,9 @@ class Chromosome:
             raise ValueError("Chromosome class has no fitness cases.")
 
         # memoize value in case the chromosome was already evaluated
-        if self.value is not None:
-            return self.value
+        value_fingerprint = tuple(sorted(terminal_values.items()))
+        if value_fingerprint in self._values_:
+            return self._values_[value_fingerprint]
 
         # build expression trees for each gene if not already built
         if len(self.trees) == 0:
@@ -67,10 +77,17 @@ class Chromosome:
             if start.name in Chromosome.functions:
                 return Chromosome.functions[start.name]["f"](*[inorder(node) for node in start.children])
 
-        self.value = inorder(expression_tree)
+        self._values_[value_fingerprint] = inorder(expression_tree)
 
         # noinspection PyTypeChecker
-        return self.value
+        return self._values_[value_fingerprint]
+
+
+    def print_tree(self):
+        for t in range(len(self.trees)):
+            print("Tree %d" % t)
+            for pre, _, node in RenderTree(self.trees[t]):
+                print("\t%s%s" % (pre, node.name))
 
 
     @staticmethod
@@ -106,20 +123,89 @@ class Chromosome:
 
 
     @staticmethod
+    # TODO - verify recursive linking with non-commutative linking functions (e.g. -)
     def link(*args) -> Node:
         """
         Links two trees at their roots using the specified linking function.
         Linking function must take as many arguments as number of args provided.
 
-        :param args: expression trees to link. Must be as many expression trees as linking function has arguments.
+        :param args: expression trees to link. Must be at least as many expression trees as linking function has arguments.
         :return: expression tree with tree1 and tree2 as subtrees
         """
         if Chromosome.linking_function not in Chromosome.functions:
             raise ValueError("Linking function is not defined in Chromosome.functions.")
-        if len(args) != Chromosome.functions[Chromosome.linking_function]["args"]:
-            raise ValueError("Invalid number of arguments to linking function.")
-        root = Node(Chromosome.linking_function)
-        for tree in args:
-            assert(isinstance(tree, Node))
-            tree.parent = root
-        return root
+        if not all([isinstance(arg, Node) for arg in args]):
+            raise TypeError("Can only link expression trees.")
+
+        nargs = Chromosome.functions[Chromosome.linking_function]["args"]
+
+        def link_recursive(*args) -> Node:
+            root = Node(Chromosome.linking_function)
+            if len(args) == nargs:
+                for tree in args:
+                    tree.parent = root
+                return root
+            else:
+                return link_recursive(link_recursive(*args[:nargs]), *args[nargs:])
+
+        return link_recursive(*args)
+
+
+    @staticmethod
+    def absolute_fitness(M: float, *args) -> list:
+        """
+        Calculate absolute fitness of an arbitrary number of genes.
+
+        :param M: range of fitness function over domain
+        :param args: any number of gene objects
+        :return: list of fitnesses of corresponding genes
+        """
+        fitnesses = []
+        for gene in args:
+            fitness = 0
+            for j in range(len(Chromosome.fitness_cases)):
+                C_ij = gene.evaluate(Chromosome.fitness_cases[j][0])
+                T_j = Chromosome.fitness_cases[j][1]
+                fitness += M - (C_ij - T_j)
+            fitnesses.append(fitness)
+        return fitnesses
+
+
+    @staticmethod
+    def relative_fitness(M: float, *args) -> list:
+        """
+        Calculate relative fitness of an arbitrary number of genes.
+
+        :param M: range of fitness function over domain
+        :param args: any number of gene objects
+        :return: list of fitnesses of corresponding genes
+        """
+        fitnesses = []
+        for gene in args:
+            fitness = 0
+            for j in range(len(Chromosome.fitness_cases)):
+                C_ij = gene.evaluate(Chromosome.fitness_cases[j][0])
+                T_j = Chromosome.fitness_cases[j][1]
+                fitness += M - 100*abs(C_ij / T_j - 1)
+            fitnesses.append(fitness)
+        return fitnesses
+
+
+    @staticmethod
+    def generate_random_gene() -> str:
+        """
+        Generates one random gene based on settings specified in Chromosome class.
+        :return: string of valid characters
+        """
+        possible_chars = list(Chromosome.functions.keys()) + Chromosome.terminals
+        return "".join([possible_chars[randint(0, len(possible_chars) - 1)] for _ in range(Chromosome.length)])
+
+
+    @staticmethod
+    # TODO - figure out how to make return annotation more specific
+    def generate_random_individual() -> object:
+        """
+        Generates one random individual based on settings specified in Chromosome class.
+        :return: new Chromosome
+        """
+        return Chromosome([Chromosome.generate_random_gene() for _ in range(Chromosome.num_genes)])
