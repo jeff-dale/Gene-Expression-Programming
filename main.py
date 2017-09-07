@@ -24,4 +24,5 @@ if __name__ == "__main__":
         GeneExpressionProgram.OBJECTIVE_FUNCTION(GeneExpressionProgram.OBJECTIVE_MAX) - \
         GeneExpressionProgram.OBJECTIVE_FUNCTION(GeneExpressionProgram.OBJECTIVE_MIN)
 
-    GeneExpressionProgram.evolve()
+    ans = GeneExpressionProgram.evolve()
+    ans.print_tree()
