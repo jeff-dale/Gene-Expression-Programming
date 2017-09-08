@@ -7,10 +7,10 @@ class GeneExpressionProgram:
 
     ### Hyperparameters ###
     NUM_RUNS = 100
-    NUM_GENERATIONS = 50
-    POPULATION_SIZE = 30
+    NUM_GENERATIONS = 500
+    POPULATION_SIZE = 100
     NUM_FITNESS_CASES = 10
-    ERROR_TOLERANCE = 0.01
+    ERROR_TOLERANCE = 0.0000001
 
     ### Reproduction ###
     MUTATION_RATE = 0.051
@@ -23,8 +23,10 @@ class GeneExpressionProgram:
     SELECTION_RANGE = 100
 
     ### Fitness Evaluation ###
-    OBJECTIVE_FUNCTION = staticmethod(lambda a: a ** 4 + a ** 3 + a ** 2 + a)
-    OBJECTIVE_MIN, OBJECTIVE_MAX = 0, 20
+    OBJECTIVE_FUNCTION = None
+    FITNESS_FUNCTION = None
+    FITNESS_FUNCTION_ARGS = list()
+    OBJECTIVE_MIN, OBJECTIVE_MAX = None, None
     FUNCTION_Y_RANGE = None
 
 
@@ -38,8 +40,6 @@ class GeneExpressionProgram:
         if GeneExpressionProgram.FUNCTION_Y_RANGE is None:
             raise ValueError("Class variable FUNCTION_Y_RANGE must be set to calculate fitness.")
 
-        Chromosome.max_fitness = GeneExpressionProgram.FUNCTION_Y_RANGE * GeneExpressionProgram.NUM_FITNESS_CASES
-
         # create initial population
         population = [Chromosome.generate_random_individual() for _ in range(GeneExpressionProgram.POPULATION_SIZE)]
 
@@ -50,7 +50,7 @@ class GeneExpressionProgram:
             ### EVALUATION ###
 
             # calcluate fitnesses for population
-            population_fitnesses = Chromosome.absolute_fitness(GeneExpressionProgram.FUNCTION_Y_RANGE, *population)
+            population_fitnesses = GeneExpressionProgram.FITNESS_FUNCTION(*GeneExpressionProgram.FITNESS_FUNCTION_ARGS, *population)
 
             # find best fit individual
             # noinspection PyTypeChecker
@@ -59,7 +59,7 @@ class GeneExpressionProgram:
                 best_fit_individual = best_fit_generation
 
             # skip rest of loop if we have found optimal solution
-            if best_fit_individual.fitness() >= Chromosome.max_fitness:
+            if abs(best_fit_individual.fitness() - Chromosome.max_fitness) < GeneExpressionProgram.ERROR_TOLERANCE:
                 break
 
             next_generation = list()
@@ -116,7 +116,7 @@ class GeneExpressionProgram:
             population = next_generation
             generation += 1
 
-            print("Generation: %d\tBest Fitness: %.5f" % (generation, best_fit_individual.fitness()))
+            print("Generation: %d\tPopulation Size: %d\tAverage Fitness: %.5f\tBest Fitness (overall): %.5f" % (generation, len(population), np.mean(population_fitnesses), best_fit_individual.fitness()))
 
         return best_fit_individual
 

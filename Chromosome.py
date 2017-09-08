@@ -44,6 +44,7 @@ class Chromosome:
         self._values_ = {}
         self._fitness_ = None
 
+
     # TODO - put informative error message when terminal_values doesn't have enough entries
     def evaluate(self, terminal_values: dict) -> float:
         """
@@ -75,11 +76,17 @@ class Chromosome:
         def inorder(start: Node) -> float:
             nonlocal terminal_values
             if start.name in Chromosome.terminals:
-                return terminal_values[start.name]
+                return int(start.name) if start.name.isdigit() else terminal_values[start.name]
             if start.name in Chromosome.functions:
                 return Chromosome.functions[start.name]["f"](*[inorder(node) for node in start.children])
 
-        self._values_[value_fingerprint] = inorder(expression_tree)
+        try:
+            self._values_[value_fingerprint] = inorder(expression_tree)
+            if isinstance(self._values_[value_fingerprint], np.complex):
+                raise TypeError
+        # ZeroDivisionError if tree does something like x/(y-y), TypeError if the takes square root of a negative.
+        except (ZeroDivisionError, TypeError):
+            self._values_[value_fingerprint] = np.nan
 
         # noinspection PyTypeChecker
         return self._values_[value_fingerprint]
@@ -179,7 +186,7 @@ class Chromosome:
                 for j in range(len(Chromosome.fitness_cases)):
                     C_ij = chromosome.evaluate(Chromosome.fitness_cases[j][0])
                     # assign any chromosome that divides by zero a fitness value of zero
-                    if np.isnan(C_ij) or np.isinf(C_ij) or np.isneginf(C_ij):
+                    if type(C_ij) == np.complex or np.isnan(C_ij) or np.isinf(C_ij) or np.isneginf(C_ij):
                         fitness = 0
                         break
                     T_j = Chromosome.fitness_cases[j][1]
@@ -212,6 +219,27 @@ class Chromosome:
                     fitness += M - 100*abs(C_ij / T_j - 1)
                 chromosome._fitness_ = fitness
                 fitnesses.append(fitness)
+        return np.asarray(fitnesses)
+
+
+    @staticmethod
+    def inv_squared_error(*args) -> np.ndarray:
+        fitnesses = []
+        for chromosome in args:
+            # memoize fitness values
+            if chromosome._fitness_ is not None:
+                fitnesses.append(chromosome._fitness_)
+            else:
+                fitness = 0
+                for j in range(len(Chromosome.fitness_cases)):
+                    C_ij = chromosome.evaluate(Chromosome.fitness_cases[j][0])
+                    if type(C_ij) == np.complex or np.isnan(C_ij) or np.isinf(C_ij) or np.isneginf(C_ij):
+                        fitness = np.inf
+                        break
+                    T_j = Chromosome.fitness_cases[j][1]
+                    fitness += (C_ij - T_j)**2
+                chromosome._fitness_ = 1.0/(1+fitness)
+                fitnesses.append(chromosome._fitness_)
         return np.asarray(fitnesses)
 
 
