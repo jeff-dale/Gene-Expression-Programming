@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 from random import random, randint, shuffle
 
@@ -19,9 +20,6 @@ class GeneExpressionProgram:
     RIS_TRANSPOSITION_RATE, RIS_ELEMENTS_LENGTH = 0.1, [1, 2, 3]
     GENE_TRANSPOSITION_RATE = 0.1
 
-    ### Selection ###
-    SELECTION_RANGE = 100
-
     ### Fitness Evaluation ###
     OBJECTIVE_FUNCTION = None
     FITNESS_FUNCTION = None
@@ -35,16 +33,15 @@ class GeneExpressionProgram:
 
 
     @staticmethod
-    def evolve() -> Chromosome:
-
-        if GeneExpressionProgram.FUNCTION_Y_RANGE is None:
-            raise ValueError("Class variable FUNCTION_Y_RANGE must be set to calculate fitness.")
+    def evolve() -> (Chromosome, list, list):
 
         # create initial population
         population = [Chromosome.generate_random_individual() for _ in range(GeneExpressionProgram.POPULATION_SIZE)]
 
         generation = 0
         best_fit_individual = None
+        average_fitness_by_generation = []
+        best_fitness_by_generation = []
         while generation < GeneExpressionProgram.NUM_GENERATIONS:
 
             ### EVALUATION ###
@@ -55,8 +52,8 @@ class GeneExpressionProgram:
             # find best fit individual
             # noinspection PyTypeChecker
             best_fit_generation = population[np.argmax(population_fitnesses)]
-            if best_fit_individual is None or best_fit_individual.fitness() < best_fit_generation.fitness():
-                best_fit_individual = best_fit_generation
+            if generation == 0 or best_fit_individual.fitness() < best_fit_generation.fitness():
+                best_fit_individual = deepcopy(best_fit_generation)
 
             # skip rest of loop if we have found optimal solution
             if abs(best_fit_individual.fitness() - Chromosome.max_fitness) < GeneExpressionProgram.ERROR_TOLERANCE:
@@ -68,7 +65,7 @@ class GeneExpressionProgram:
             ### SELECTION (roulette wheel with simple elitism) ###
 
             # copy best individual to next generation
-            next_generation.append(best_fit_individual)
+            next_generation.append(deepcopy(best_fit_individual))
 
             # select the rest of the next generation with roulette wheel selection
             all_parents = GeneExpressionProgram.roulette_wheel_selection(population, len(population))
@@ -116,9 +113,13 @@ class GeneExpressionProgram:
             population = next_generation
             generation += 1
 
-            print("Generation: %d\tPopulation Size: %d\tAverage Fitness: %.5f\tBest Fitness (overall): %.5f" % (generation, len(population), np.mean(population_fitnesses), best_fit_individual.fitness()))
+            average_fitness_generation = float(np.mean(population_fitnesses))
+            average_fitness_by_generation.append(average_fitness_generation)
+            best_fitness_by_generation.append(best_fit_individual.fitness())
+            print("Generation: %d\tPopulation Size: %d\tAverage Fitness: %.5f\tBest Fitness (overall): %.5f" %
+                  (generation, len(population), average_fitness_generation, best_fit_individual.fitness()))
 
-        return best_fit_individual
+        return best_fit_individual, average_fitness_by_generation, best_fitness_by_generation
 
 
     @staticmethod

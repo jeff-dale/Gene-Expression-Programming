@@ -1,8 +1,10 @@
 from lib.anytree.node import Node
 from lib.anytree.render import RenderTree
 
+import matplotlib.pyplot as plt
 import numpy as np
 from random import randint
+from warnings import warn
 
 
 class Chromosome:
@@ -10,6 +12,7 @@ class Chromosome:
     # Functions and Terminals are shared by all chromosomes
     functions = dict()
     terminals = list()
+    constants = dict()
     linking_function = None
 
     # length of head of chromosome
@@ -54,9 +57,6 @@ class Chromosome:
         :return: real valued result of evaluating the chromosome
         """
 
-        if len(Chromosome.fitness_cases) == 0:
-            raise ValueError("Chromosome class has no fitness cases.")
-
         # memoize value in case the chromosome was already evaluated
         value_fingerprint = tuple(sorted(terminal_values.items()))
         if value_fingerprint in self._values_:
@@ -76,6 +76,8 @@ class Chromosome:
         def inorder(start: Node) -> float:
             nonlocal terminal_values
             if start.name in Chromosome.terminals:
+                if start.name in Chromosome.constants:
+                    return Chromosome.constants[start.name]
                 return int(start.name) if start.name.isdigit() else terminal_values[start.name]
             if start.name in Chromosome.functions:
                 return Chromosome.functions[start.name]["f"](*[inorder(node) for node in start.children])
@@ -95,7 +97,8 @@ class Chromosome:
     def fitness(self):
         if self._fitness_ is not None:
             return self._fitness_
-        raise ValueError("Fitness of chromosome has not been properly calculated.")
+        warn("Fitness of chromosome has not been properly calculated. Returning 0.")
+        return 0
 
 
     def print_tree(self):
@@ -103,6 +106,42 @@ class Chromosome:
             print("Tree %d" % t)
             for pre, _, node in RenderTree(self.trees[t]):
                 print("\t%s%s" % (pre, node.name))
+
+
+    def plot_solution(self, objective_function, x_min: float, x_max: float,
+                      avg_fitnesses: list, best_fitnesses: list) -> None:
+
+        if objective_function is not None:
+            # set up subplots
+            plt.subplots(1, 2, figsize=(16, 8))
+
+            # Objective function vs Discovered function plot
+            xs = np.linspace(x_min, x_max, 100)
+            plt.subplot(1, 2, 1)
+            plt.title("Discovered function vs. Objective function")
+            plt.plot(xs, [objective_function(x) for x in xs],
+                     linewidth=2, linestyle='dashed', color='black', label="Objective")
+            plt.plot(xs, [self.evaluate({"x": x}) for x in xs],
+                     linewidth=2, color='blue', label="Discovered")
+            plt.legend(loc="upper left")
+
+            # Fitness over time plot
+            plt.subplot(1, 2, 2)
+
+            plt.title("Fitness by Generation")
+            plt.plot(range(len(avg_fitnesses)), avg_fitnesses, label="Average")
+            plt.plot(range(len(best_fitnesses)), best_fitnesses, label="Best")
+            plt.legend(loc="upper left")
+            plt.show()
+
+        else:
+            plt.subplots(1, 1, figsize=(8, 8))
+            plt.title("Fitness by Generation")
+            plt.title("Fitness by Generation")
+            plt.plot(range(len(avg_fitnesses)), avg_fitnesses, label="Average")
+            plt.plot(range(len(best_fitnesses)), best_fitnesses, label="Best")
+            plt.legend(loc="upper left")
+            plt.show()
 
 
     @staticmethod
@@ -239,6 +278,27 @@ class Chromosome:
                     T_j = Chromosome.fitness_cases[j][1]
                     fitness += (C_ij - T_j)**2
                 chromosome._fitness_ = 1.0/(1+fitness)
+                fitnesses.append(chromosome._fitness_)
+        return np.asarray(fitnesses)
+
+
+    @staticmethod
+    def centralized_inv_squared_error(center: float, dimension: str, *args) -> np.ndarray:
+        fitnesses = []
+        for chromosome in args:
+            # memoize fitness values
+            if chromosome._fitness_ is not None:
+                fitnesses.append(chromosome._fitness_)
+            else:
+                fitness = 0
+                for j in range(len(Chromosome.fitness_cases)):
+                    C_ij = chromosome.evaluate(Chromosome.fitness_cases[j][0])
+                    if type(C_ij) == np.complex or np.isnan(C_ij) or np.isinf(C_ij) or np.isneginf(C_ij):
+                        fitness = np.inf
+                        break
+                    T_j = Chromosome.fitness_cases[j][1]
+                    fitness += abs(C_ij - T_j)**(1/abs(Chromosome.fitness_cases[j][0][dimension] - center))
+                chromosome._fitness_ = 1.0 / (1 + fitness)
                 fitnesses.append(chromosome._fitness_)
         return np.asarray(fitnesses)
 
