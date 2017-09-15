@@ -117,24 +117,24 @@ def euclidean_distance():
     ans.print_tree()
 
 
-def cart_pole():
+def cart_pole_bool():
 
     import gym
-    env = gym.make('CartPole-v0')
+    env = gym.make('CartPole-v1')
 
     def fitness(num_trials: int, *args) -> np.ndarray:
         fitnesses = []
         for chromosome_index in range(len(args)):
             chromosome = args[chromosome_index]
             total_reward = 0
-            print("\tCalculating chromosome:\t%d" % chromosome_index, end="\t")
+            #print("\tCalculating chromosome:\t%d" % chromosome_index, end="\t")
             for trial in range(num_trials):
                 x, theta, dx, dtheta = env.reset()
                 t = 0
                 while True:
-                    env.render()
-                    #action = chromosome.evaluate({"x": x > 0, "v": dx > 0, "t": theta > 0, "u": dtheta > 0})
-                    action = chromosome.evaluate({"v": dx > 0, "t": theta > 0, "u": dtheta > 0})
+                    #env.render()
+                    action = chromosome.evaluate({"x": x > 0, "v": dx > 0, "t": theta > 0, "u": dtheta > 0})
+                    #action = chromosome.evaluate({"v": dx > 0, "t": theta > 0, "u": dtheta > 0})
                     observation, reward, done, info = env.step(action)
                     x, theta, dx, dtheta = observation
                     total_reward += reward
@@ -143,7 +143,7 @@ def cart_pole():
                     t += 1
             chromosome._fitness_ = total_reward / float(num_trials)
             fitnesses.append(total_reward / float(num_trials))
-            print("Fitness: %.5f" % (total_reward / float(num_trials)))
+            #print("Fitness: %.5f" % (total_reward / float(num_trials)))
         return np.asarray(fitnesses)
 
     Chromosome.functions = {
@@ -164,21 +164,21 @@ def cart_pole():
     }
 
     Chromosome.terminals = [
-        #"x",    # cart x-value
+        "x",    # cart x-value
         "v",    # cart velocity
         "t",    # pole angle
         "u"     # rate of change of pole angle
     ]
 
     GeneExpressionProgram.FITNESS_FUNCTION = fitness
-    GeneExpressionProgram.FITNESS_FUNCTION_ARGS = [5]
+    GeneExpressionProgram.FITNESS_FUNCTION_ARGS = [10]
     GeneExpressionProgram.POPULATION_SIZE = 10
     GeneExpressionProgram.ERROR_TOLERANCE = 5
 
-    Chromosome.max_fitness = 200
+    Chromosome.max_fitness = 500
     Chromosome.num_genes = 3
-    Chromosome.length = 30
-    Chromosome.head_length = 10
+    Chromosome.length = 45
+    Chromosome.head_length = 15
     Chromosome.linking_function = "&"
 
     ans, average_fitnesses, best_fitnesses = GeneExpressionProgram.evolve()
@@ -186,18 +186,75 @@ def cart_pole():
     ans.plot_solution(None, 0, 0, average_fitnesses, best_fitnesses)
     print(ans.genes)
 
-    #best = Chromosome(['!#uxtu#t?#vvuvuvxtxtvvxxxuutxv', 'u!v?!t^^^^utvvvvutxvuvuuxtuuvu', '&#uv|^#tu#vvuxxvvuxtvvxvxuutxt'])
-    #fitness(100, best)
 
-    #best = Chromosome(['uu#uv||!#tuuvvtuuuuvvvttvvtttu', 'u#!?u#|&#&vvvuuvvuttuuvtvttuvt', '&t^|^tu?t^uututuuuuuvtuttuvtt'])
-    #fitness(100, best)
+def cart_pole_real():
 
-    #best = Chromosome(['v||v&^u#!#uuuvvtuvuuvtuvvtuuvv', '^#?vv?&utuvuvuuvvttvtvtuvvuvtv', 'v||v&^u#|#uuvvvtuvuuvtuvvtuuvv'])
-    #fitness(100, best)
+    import gym
+    env = gym.make('CartPole-v1')
+
+    def fitness(num_trials: int, render: bool = False, *args) -> np.ndarray:
+        fitnesses = []
+        for chromosome_index in range(len(args)):
+            chromosome = args[chromosome_index]
+            total_reward = 0
+            #print("\tCalculating chromosome:\t%d" % chromosome_index, end="\t")
+            for trial in range(num_trials):
+                x, theta, dx, dtheta = env.reset()
+                t = 0
+                while True:
+                    if render: env.render()
+                    action = chromosome.evaluate({"x": x, "v": dx, "t": theta, "u": dtheta})
+                    #action = chromosome.evaluate({"v": dx > 0, "t": theta > 0, "u": dtheta > 0})
+                    observation, reward, done, info = env.step(action > 0)
+                    x, theta, dx, dtheta = observation
+                    total_reward += reward
+                    if done:
+                        break
+                    t += 1
+            chromosome._fitness_ = total_reward / float(num_trials)
+            fitnesses.append(total_reward / float(num_trials))
+            #print("Fitness: %.5f" % (total_reward / float(num_trials)))
+        return np.asarray(fitnesses)
+
+    Chromosome.functions = {
+        "+": {"args": 2, "f": lambda x, y: x + y},
+        "-": {"args": 2, "f": lambda x, y: x - y},
+        "*": {"args": 2, "f": lambda x, y: x * y},
+        "/": {"args": 2, "f": lambda x, y: x / y}
+    }
+
+    Chromosome.terminals = [
+        "x",    # cart x-value
+        "v",    # cart velocity
+        "t",    # pole angle
+        "u"     # rate of change of pole angle
+    ]
+
+    GeneExpressionProgram.FITNESS_FUNCTION = fitness
+    GeneExpressionProgram.FITNESS_FUNCTION_ARGS = [10, False]
+    GeneExpressionProgram.POPULATION_SIZE = 10
+    GeneExpressionProgram.ERROR_TOLERANCE = 5
+
+    Chromosome.max_fitness = 500
+    Chromosome.num_genes = 3
+    Chromosome.length = 30
+    Chromosome.head_length = 10
+    Chromosome.linking_function = "+"
+
+    ans, average_fitnesses, best_fitnesses = GeneExpressionProgram.evolve()
+    ans.print_tree()
+    ans.plot_solution(None, 0, 0, average_fitnesses, best_fitnesses)
+    print(ans.genes)
+
+    fitness(10, True, ans)
+
+    # Very good genes (500 fitness):
+    # ['ut-t*uvvx-tvvxuuuxttuxtvxtttuu', 'uxx+t--vxtxvvtvxxttvuvxuuuxutu', '++*t++**v-xvxtxtxxxttuttxututu']
+
 
 if __name__ == "__main__":
 
     #a4_a3_a2_a1()
     #sinx_polynomial()
     #euclidean_distance()
-    cart_pole()
+    cart_pole_real()
