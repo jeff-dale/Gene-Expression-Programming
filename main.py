@@ -197,14 +197,13 @@ def cart_pole_real():
         for chromosome_index in range(len(args)):
             chromosome = args[chromosome_index]
             total_reward = 0
-            #print("\tCalculating chromosome:\t%d" % chromosome_index, end="\t")
+            print("\tCalculating chromosome %d across %d trials." % (chromosome_index, num_trials), end="\t")
             for trial in range(num_trials):
                 x, theta, dx, dtheta = env.reset()
                 t = 0
                 while True:
                     if render: env.render()
                     action = chromosome.evaluate({"x": x, "v": dx, "t": theta, "u": dtheta})
-                    #action = chromosome.evaluate({"v": dx > 0, "t": theta > 0, "u": dtheta > 0})
                     observation, reward, done, info = env.step(action > 0)
                     x, theta, dx, dtheta = observation
                     total_reward += reward
@@ -213,7 +212,7 @@ def cart_pole_real():
                     t += 1
             chromosome._fitness_ = total_reward / float(num_trials)
             fitnesses.append(total_reward / float(num_trials))
-            #print("Fitness: %.5f" % (total_reward / float(num_trials)))
+            print("Fitness: %.5f" % (total_reward / float(num_trials)))
         return np.asarray(fitnesses)
 
     Chromosome.functions = {
@@ -233,7 +232,9 @@ def cart_pole_real():
     GeneExpressionProgram.FITNESS_FUNCTION = fitness
     GeneExpressionProgram.FITNESS_FUNCTION_ARGS = [10, False]
     GeneExpressionProgram.POPULATION_SIZE = 10
-    GeneExpressionProgram.ERROR_TOLERANCE = 5
+    GeneExpressionProgram.ERROR_TOLERANCE = -5
+    GeneExpressionProgram.NUM_RUNS = 5
+    GeneExpressionProgram.NUM_GENERATIONS = 15
 
     Chromosome.max_fitness = 500
     Chromosome.num_genes = 3
@@ -241,15 +242,24 @@ def cart_pole_real():
     Chromosome.head_length = 10
     Chromosome.linking_function = "+"
 
-    ans, average_fitnesses, best_fitnesses = GeneExpressionProgram.evolve()
-    ans.print_tree()
-    ans.plot_solution(None, 0, 0, average_fitnesses, best_fitnesses)
-    print(ans.genes)
+    average_fitnesses = []
+    best_fitnesses = []
 
-    fitness(10, True, ans)
+    for rep in range(GeneExpressionProgram.NUM_RUNS):
+        ans, gen_average_fitnesses, gen_best_fitnesses = GeneExpressionProgram.evolve()
+        average_fitnesses.append(gen_average_fitnesses)
+        best_fitnesses.append(gen_best_fitnesses)
+        ans.print_tree()
+        print(ans.genes)
 
-    # Very good genes (500 fitness):
-    # ['ut-t*uvvx-tvvxuuuxttuxtvxtttuu', 'uxx+t--vxtxvvtvxxttvuvxuuuxutu', '++*t++**v-xvxtxtxxxttuttxututu']
+        fitness(100, False, ans)
+
+    GeneExpressionProgram.plot_reps(average_fitnesses, best_fitnesses)
+
+    # Very good genes (500 fitness over 100 attempts):
+    # ['-u-uvx*txtxxutuutvtvtvttttutvu', '+*vxu/x/-/tutxtxxxuvuuxvtuvvtu', '+ut*vv*vtvxvxvuxvtxvtvuutvtttt']
+    # ['t/v*/xtttvuxtvvttutxxtuvxuvttt', '-v*+v*+t+tuxtvvttuuvxvtuvuvxtt', 'u++tu+uvtvtxtvtvtuvxxttvxvxvv']
+    # ['-t-*+u*u-*tuutxxuutxtxttxttvxu', '+-u**+-/vxvxxxvtxvxuxvxvvxxtvx', '+xv-xvx-xtuutxxtxxxtxxuttvxxut']
 
 
 if __name__ == "__main__":

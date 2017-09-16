@@ -94,14 +94,24 @@ class Chromosome:
         return self._values_[value_fingerprint]
 
 
-    def fitness(self):
+    def fitness(self) -> float:
+        """
+        Getter for fitness property to make sure we aren't grabbing uncalculated fitnesses
+
+        :return: fitness of chromosome, or raise a warning and return 0 if fitness hasn't been calculated
+        """
         if self._fitness_ is not None:
             return self._fitness_
         warn("Fitness of chromosome has not been properly calculated. Returning 0.")
         return 0
 
 
-    def print_tree(self):
+    def print_tree(self) -> None:
+        """
+        Use AnyTree to display a Chromosome's expression tree(s)
+
+        :return: void
+        """
         for t in range(len(self.trees)):
             print("Tree %d" % t)
             for pre, _, node in RenderTree(self.trees[t]):
@@ -110,6 +120,17 @@ class Chromosome:
 
     def plot_solution(self, objective_function, x_min: float, x_max: float,
                       avg_fitnesses: list, best_fitnesses: list) -> None:
+
+        """
+        Mostly unused, handy for plotting symbolic regression results though
+
+        :param objective_function: ground truth function to plot
+        :param x_min: minimum x value of plot
+        :param x_max: maximum x value of plot
+        :param avg_fitnesses: list of average fitness values by generation
+        :param best_fitnesses: list of best fitness values by generation
+        :return: void
+        """
 
         if objective_function is not None:
             # set up subplots
@@ -137,7 +158,6 @@ class Chromosome:
         else:
             plt.subplots(1, 1, figsize=(8, 8))
             plt.title("Fitness by Generation")
-            plt.title("Fitness by Generation")
             plt.plot(range(len(avg_fitnesses)), avg_fitnesses, label="Average")
             plt.plot(range(len(best_fitnesses)), best_fitnesses, label="Best")
             plt.legend(loc="upper left")
@@ -146,6 +166,12 @@ class Chromosome:
 
     @staticmethod
     def build_tree(gene: str) -> Node:
+        """
+        Constructs an expression tree from a gene.
+
+        :param gene: gene to turn into expression tree
+        :return: anytree Node of the root of the tree
+        """
 
         # shortcut to get the number of arguments to a function
         def args(f: str) -> int:
@@ -186,6 +212,7 @@ class Chromosome:
         :param args: expression trees to link. Must be at least as many expression trees as linking function has arguments.
         :return: expression tree with tree1 and tree2 as subtrees
         """
+
         if Chromosome.linking_function not in Chromosome.functions:
             raise ValueError("Linking function is not defined in Chromosome.functions.")
         if not all([isinstance(arg, Node) for arg in args]):
@@ -263,6 +290,12 @@ class Chromosome:
 
     @staticmethod
     def inv_squared_error(*args) -> np.ndarray:
+        """
+        Classical 1/(1+error) fitness value.
+
+        :param args: list of chromosomes to calculate fitness of
+        :return: ndarray of fitness values for each given chromosome
+        """
         fitnesses = []
         for chromosome in args:
             # memoize fitness values
@@ -284,6 +317,14 @@ class Chromosome:
 
     @staticmethod
     def centralized_inv_squared_error(center: float, dimension: str, *args) -> np.ndarray:
+        """
+        Mostly unused, a fitness function that focuses on error near a given point.
+
+        :param center: point around which the fitness values are more important
+        :param dimension: which dimension of the fitness case to use, in the case of multivariate functions
+        :param args: any chromosomes to calculate fitness of
+        :return: ndarray of fitness values
+        """
         fitnesses = []
         for chromosome in args:
             # memoize fitness values

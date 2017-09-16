@@ -1,4 +1,5 @@
 from copy import deepcopy
+import matplotlib.pyplot as plt
 import numpy as np
 from random import random, randint, shuffle
 
@@ -7,7 +8,7 @@ from Chromosome import Chromosome
 class GeneExpressionProgram:
 
     ### Hyperparameters ###
-    NUM_RUNS = 100
+    NUM_RUNS = 5
     NUM_GENERATIONS = 500
     POPULATION_SIZE = 100
     NUM_FITNESS_CASES = 10
@@ -34,6 +35,14 @@ class GeneExpressionProgram:
 
     @staticmethod
     def evolve() -> (Chromosome, list, list):
+        """
+        Execute Gene Expression Programming algorithm
+
+        :return: tuple of:
+            the best fit chromosome,
+            list of average fitness by generation (for plotting),
+            list of best fitness by generation (for plotting
+        """
 
         # create initial population
         population = [Chromosome.generate_random_individual() for _ in range(GeneExpressionProgram.POPULATION_SIZE)]
@@ -56,7 +65,10 @@ class GeneExpressionProgram:
                 best_fit_individual = deepcopy(best_fit_generation)
 
             # skip rest of loop if we have found optimal solution
-            if abs(best_fit_individual.fitness() - Chromosome.max_fitness) < GeneExpressionProgram.ERROR_TOLERANCE:
+            if abs(best_fit_individual.fitness() - Chromosome.max_fitness) <= GeneExpressionProgram.ERROR_TOLERANCE:
+                average_fitness_generation = float(np.mean(population_fitnesses))
+                average_fitness_by_generation.append(average_fitness_generation)
+                best_fitness_by_generation.append(best_fit_individual.fitness())
                 break
 
             next_generation = list()
@@ -150,6 +162,12 @@ class GeneExpressionProgram:
 
     @staticmethod
     def mutate(chromosome: Chromosome) -> Chromosome:
+        """
+        Randomly mutate genes in a chromosome.
+
+        :param chromosome: chromosome to mutate
+        :return: mutated chromosome
+        """
 
         head_characters = list(Chromosome.functions.keys()) + Chromosome.terminals
 
@@ -170,11 +188,18 @@ class GeneExpressionProgram:
                     new_gene += chromosome.genes[gene][i]
             new_genes.append(new_gene)
 
+        # create new chromosome to ensure memoized fitness values are recalculated.
         return Chromosome(new_genes)
 
 
     @staticmethod
     def is_transposition(chromosome: Chromosome) -> Chromosome:
+        """
+        Insertion Sequence transposition.
+
+        :param chromosome: chromosome to perform IS transposition on
+        :return: new chromosome
+        """
 
         if random() < GeneExpressionProgram.IS_TRANSPOSITION_RATE:
 
@@ -202,6 +227,12 @@ class GeneExpressionProgram:
 
     @staticmethod
     def ris_transposition(chromosome: Chromosome) -> Chromosome:
+        """
+        Root Insertion Sequence transposition.
+
+        :param chromosome: chromosome to perform RIS transposition on
+        :return: new chromosome
+        """
 
         start_point = randint(0, Chromosome.head_length - 1)
         gene = randint(0, Chromosome.num_genes - 1)
@@ -226,6 +257,13 @@ class GeneExpressionProgram:
 
     @staticmethod
     def gene_transposition(chromosome: Chromosome) -> Chromosome:
+        """
+        Gene Insertion Sequence transposition.
+
+        :param chromosome: chromosome to perform gene transposition on
+        :return: new chromosome
+        """
+
         if Chromosome.num_genes > 1 and random() < GeneExpressionProgram.GENE_TRANSPOSITION_RATE:
 
             index = randint(0, Chromosome.num_genes - 1)
@@ -241,6 +279,13 @@ class GeneExpressionProgram:
 
     @staticmethod
     def one_point_recombination(chromosome1: Chromosome, chromosome2: Chromosome) -> (Chromosome, Chromosome):
+        """
+        Classical one point recombination.
+
+        :param chromosome1: parent 1
+        :param chromosome2: parent 2
+        :return: offspring 1, offspring 2
+        """
         gene = randint(0, Chromosome.num_genes - 1)
         position = randint(0, Chromosome.length)
 
@@ -255,6 +300,13 @@ class GeneExpressionProgram:
 
     @staticmethod
     def two_point_recombination(chromosome1: Chromosome, chromosome2: Chromosome) -> (Chromosome, Chromosome):
+        """
+        Classical two point recombination.
+
+        :param chromosome1: parent 1
+        :param chromosome2: parent 2
+        :return: offspring 1, offsprint 2
+        """
 
         # generate crossover points
         position1, position2 = sorted([randint(0, Chromosome.length*Chromosome.num_genes - 1), randint(0, Chromosome.length*Chromosome.num_genes - 1)])
@@ -276,6 +328,13 @@ class GeneExpressionProgram:
 
     @staticmethod
     def gene_recombination(chromosome1: Chromosome, chromosome2: Chromosome) -> (Chromosome, Chromosome):
+        """
+        Two point recombination that occurs along gene boundaries for multigenic chromosomes.
+
+        :param chromosome1: parent 1
+        :param chromosome2: parent 2
+        :return: offspring 1, offspring 2
+        """
 
         # choose gene to swap
         gene = randint(0, Chromosome.num_genes - 1)
@@ -289,3 +348,32 @@ class GeneExpressionProgram:
         child2_genes[gene] = chromosome1.genes[gene]
 
         return Chromosome(child1_genes), Chromosome(child2_genes)
+
+
+    @staticmethod
+    def plot_reps(avg_fitnesses: list, best_fitnesses: list) -> None:
+        """
+        Plot all reps with global best solutions.
+
+        :param avg_fitnesses: list of lists containing average fitnesses by generation for each rep
+        :param best_fitnesses: same as avg_fitnesses but best fitnesses
+        :return: void
+        """
+        plt.subplots(1, 1, figsize=(8, 8))
+        plt.title("Fitness by Generation")
+        plt.xlabel("Generation")
+        plt.ylabel("Fitness")
+
+        max_generations = max([len(i) for i in avg_fitnesses])
+
+        # make list of global best solutions
+        global_bests = [max([best_fitnesses[i][j] if j < len(best_fitnesses[i]) else Chromosome.max_fitness
+                             for i in range(GeneExpressionProgram.NUM_RUNS)]) for j in range(max_generations)]
+        plt.plot(range(len(global_bests)), global_bests, label="Global Best")
+
+        # plot each rep
+        for rep in range(GeneExpressionProgram.NUM_RUNS):
+            plt.plot(range(len(avg_fitnesses[rep])), avg_fitnesses[rep], label="Rep %d" % (rep + 1))
+
+        plt.legend(loc="upper left")
+        plt.show()
