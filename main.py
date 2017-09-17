@@ -192,12 +192,13 @@ def cart_pole_real():
     import gym
     env = gym.make('CartPole-v1')
 
-    def fitness(num_trials: int, render: bool = False, *args) -> np.ndarray:
+    def fitness(num_trials: int, render: bool = False, doPrint: bool = False, *args) -> np.ndarray:
         fitnesses = []
         for chromosome_index in range(len(args)):
             chromosome = args[chromosome_index]
             total_reward = 0
-            print("\tCalculating chromosome %d across %d trials." % (chromosome_index, num_trials), end="\t")
+            if doPrint:
+                print("\tCalculating chromosome %d across %d trials." % (chromosome_index, num_trials), end="\t")
             for trial in range(num_trials):
                 x, theta, dx, dtheta = env.reset()
                 t = 0
@@ -212,7 +213,8 @@ def cart_pole_real():
                     t += 1
             chromosome._fitness_ = total_reward / float(num_trials)
             fitnesses.append(total_reward / float(num_trials))
-            print("Fitness: %.5f" % (total_reward / float(num_trials)))
+            if doPrint:
+                print("Fitness: %.5f" % (total_reward / float(num_trials)))
         return np.asarray(fitnesses)
 
     Chromosome.functions = {
@@ -230,13 +232,13 @@ def cart_pole_real():
     ]
 
     GeneExpressionProgram.FITNESS_FUNCTION = fitness
-    GeneExpressionProgram.FITNESS_FUNCTION_ARGS = [10, False]
+    GeneExpressionProgram.FITNESS_FUNCTION_ARGS = [10, False, False]
     GeneExpressionProgram.POPULATION_SIZE = 10
-    GeneExpressionProgram.ERROR_TOLERANCE = -5
-    GeneExpressionProgram.NUM_RUNS = 5
+    GeneExpressionProgram.ERROR_TOLERANCE = 0
+    GeneExpressionProgram.NUM_RUNS = 1
     GeneExpressionProgram.NUM_GENERATIONS = 15
 
-    Chromosome.max_fitness = 500
+    Chromosome.max_fitness = 5000
     Chromosome.num_genes = 3
     Chromosome.length = 30
     Chromosome.head_length = 10
@@ -252,9 +254,15 @@ def cart_pole_real():
         ans.print_tree()
         print(ans.genes)
 
-        fitness(100, False, ans)
+        fitness(100, False, True, ans)
 
-    GeneExpressionProgram.plot_reps(average_fitnesses, best_fitnesses)
+    random_search_individual, random_search_avg, random_search_best = GeneExpressionProgram.random_search(
+        GeneExpressionProgram.NUM_GENERATIONS,
+        GeneExpressionProgram.FITNESS_FUNCTION,
+        GeneExpressionProgram.FITNESS_FUNCTION_ARGS
+    )
+
+    GeneExpressionProgram.plot_reps(average_fitnesses, best_fitnesses, random_search_avg, random_search_best)
 
     # Very good genes (500 fitness over 100 attempts):
     # ['-u-uvx*txtxxutuutvtvtvttttutvu', '+*vxu/x/-/tutxtxxxuvuuxvtuvvtu', '+ut*vv*vtvxvxvuxvtxvtvuutvtttt']
@@ -266,5 +274,4 @@ if __name__ == "__main__":
 
     #a4_a3_a2_a1()
     #sinx_polynomial()
-    #euclidean_distance()
     cart_pole_real()

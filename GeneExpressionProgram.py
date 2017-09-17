@@ -135,6 +135,28 @@ class GeneExpressionProgram:
 
 
     @staticmethod
+    def random_search(num_generations: int, fitness_function: callable, fitness_function_args: list) -> (Chromosome, list, list):
+        best = None
+        best_fitness = 0
+        average_fitnesses = []
+        best_fitnesses = []
+        for gen in range(num_generations):
+            generation_fitnesses = []
+            for individual in range(GeneExpressionProgram.POPULATION_SIZE):
+                current = Chromosome.generate_random_individual()
+                current_fitness = fitness_function(*fitness_function_args, current)
+                generation_fitnesses.append(current_fitness)
+                if best is None or best_fitness <= current_fitness:
+                    best = deepcopy(current)
+                    best_fitness = best.fitness()
+            average_fitnesses.append(np.mean(generation_fitnesses))
+            best_fitnesses.append(best_fitness)
+            if best_fitness >= Chromosome.max_fitness:
+                break
+        return best, average_fitnesses, best_fitnesses
+
+
+    @staticmethod
     def roulette_wheel_selection(chromosomes: list, n: int) -> list:
         """
         Returns n randomly selected chromosomes using roulette wheel selection.
@@ -143,7 +165,7 @@ class GeneExpressionProgram:
 
         :param chromosomes: list of chromosomes to select from
         :param n: number of samples to retrieve
-        :return:
+        :return: list of chosen chromosome(s)
         """
         total = float(sum(c.fitness() for c in chromosomes))
         i = 0
@@ -351,29 +373,47 @@ class GeneExpressionProgram:
 
 
     @staticmethod
-    def plot_reps(avg_fitnesses: list, best_fitnesses: list) -> None:
+    def plot_reps(avg_fitnesses: list, best_fitnesses: list, random_search_avg: list = None, random_search_best: list = None) -> None:
         """
         Plot all reps with global best solutions.
 
         :param avg_fitnesses: list of lists containing average fitnesses by generation for each rep
         :param best_fitnesses: same as avg_fitnesses but best fitnesses
+        :param random_search_avg: average fitness value for random search across generations
+        :param random_search_best: best fitness value for random search by generation
         :return: void
         """
-        plt.subplots(1, 1, figsize=(8, 8))
-        plt.title("Fitness by Generation")
+
+        is_random_search = not (random_search_avg is None or random_search_best is None)
+
+        plt.subplots(2, 1, figsize=(16, 8))
+
+        plt.subplot(1, 1, 1)
+        plt.title("Average Fitness by Generation")
         plt.xlabel("Generation")
-        plt.ylabel("Fitness")
-
-        max_generations = max([len(i) for i in avg_fitnesses])
-
-        # make list of global best solutions
-        global_bests = [max([best_fitnesses[i][j] if j < len(best_fitnesses[i]) else Chromosome.max_fitness
-                             for i in range(GeneExpressionProgram.NUM_RUNS)]) for j in range(max_generations)]
-        plt.plot(range(len(global_bests)), global_bests, label="Global Best")
+        plt.ylabel("Average Fitness")
 
         # plot each rep
         for rep in range(GeneExpressionProgram.NUM_RUNS):
-            plt.plot(range(len(avg_fitnesses[rep])), avg_fitnesses[rep], label="Rep %d" % (rep + 1))
+            plt.plot(range(len(avg_fitnesses[rep])), avg_fitnesses[rep], label="Rep %d Average" % (rep + 1))
+
+        if is_random_search:
+            plt.plot(range(len(random_search_avg)), random_search_avg, label="Random Search Average")
+            #plt.plot(range(len(random_search_best)), random_search_best, label="Random Search Best")
+
+        plt.legend(loc="upper left")
+
+        plt.subplot(1, 2, 1)
+        plt.title("Best Fitness by Generation")
+        plt.xlabel("Generation")
+        plt.ylabel("Best Fitness")
+
+        # plot each rep
+        for rep in range(GeneExpressionProgram.NUM_RUNS):
+            plt.plot(range(len(best_fitnesses[rep])), best_fitnesses[rep], label="Rep %d Best" % (rep + 1))
+
+        if is_random_search:
+            plt.plot(range(len(random_search_best)), random_search_best, label="Random Search Best")
 
         plt.legend(loc="upper left")
         plt.show()
