@@ -386,9 +386,9 @@ class GeneExpressionProgram:
 
         is_random_search = not (random_search_avg is None or random_search_best is None)
 
-        plt.subplots(2, 1, figsize=(16, 8))
+        plt.subplots(1, 2, figsize=(16, 8))
 
-        plt.subplot(1, 1, 1)
+        plt.subplot(1, 2, 1)
         plt.title("Average Fitness by Generation")
         plt.xlabel("Generation")
         plt.ylabel("Average Fitness")
@@ -403,7 +403,7 @@ class GeneExpressionProgram:
 
         plt.legend(loc="upper left")
 
-        plt.subplot(1, 2, 1)
+        plt.subplot(1, 2, 2)
         plt.title("Best Fitness by Generation")
         plt.xlabel("Generation")
         plt.ylabel("Best Fitness")

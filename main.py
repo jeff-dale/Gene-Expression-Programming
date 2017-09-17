@@ -221,7 +221,7 @@ def cart_pole_real():
         "+": {"args": 2, "f": lambda x, y: x + y},
         "-": {"args": 2, "f": lambda x, y: x - y},
         "*": {"args": 2, "f": lambda x, y: x * y},
-        "/": {"args": 2, "f": lambda x, y: x / y}
+        "/": {"args": 2, "f": lambda x, y: x / y if y != 0 else np.inf}
     }
 
     Chromosome.terminals = [
@@ -235,10 +235,11 @@ def cart_pole_real():
     GeneExpressionProgram.FITNESS_FUNCTION_ARGS = [10, False, False]
     GeneExpressionProgram.POPULATION_SIZE = 10
     GeneExpressionProgram.ERROR_TOLERANCE = 0
-    GeneExpressionProgram.NUM_RUNS = 1
+    GeneExpressionProgram.NUM_RUNS = 5
     GeneExpressionProgram.NUM_GENERATIONS = 15
+    GeneExpressionProgram.MUTATION_RATE = 0.05
 
-    Chromosome.max_fitness = 5000
+    Chromosome.max_fitness = 500
     Chromosome.num_genes = 3
     Chromosome.length = 30
     Chromosome.head_length = 10
@@ -247,15 +248,16 @@ def cart_pole_real():
     average_fitnesses = []
     best_fitnesses = []
 
+    ans = None
     for rep in range(GeneExpressionProgram.NUM_RUNS):
+        print("====================================== Rep %d ======================================" % rep)
         ans, gen_average_fitnesses, gen_best_fitnesses = GeneExpressionProgram.evolve()
         average_fitnesses.append(gen_average_fitnesses)
         best_fitnesses.append(gen_best_fitnesses)
-        ans.print_tree()
-        print(ans.genes)
+        #ans.print_tree()
+        #print(ans.genes)
 
-        fitness(100, False, True, ans)
-
+    print("====================================== Random Search ======================================")
     random_search_individual, random_search_avg, random_search_best = GeneExpressionProgram.random_search(
         GeneExpressionProgram.NUM_GENERATIONS,
         GeneExpressionProgram.FITNESS_FUNCTION,
@@ -263,6 +265,8 @@ def cart_pole_real():
     )
 
     GeneExpressionProgram.plot_reps(average_fitnesses, best_fitnesses, random_search_avg, random_search_best)
+
+    fitness(100, True, True, ans)
 
     # Very good genes (500 fitness over 100 attempts):
     # ['-u-uvx*txtxxutuutvtvtvttttutvu', '+*vxu/x/-/tutxtxxxuvuuxvtuvvtu', '+ut*vv*vtvxvxvuxvtxvtvuutvtttt']
