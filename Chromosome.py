@@ -13,6 +13,7 @@ class Chromosome:
     functions = dict()
     terminals = list()
     constants = dict()
+    ephemeral_random_constants_range = (-1, 1)
     linking_function = None
 
     # length of head of chromosome
@@ -40,12 +41,15 @@ class Chromosome:
             raise ValueError("Multigenic chromosome defined with no linking function.")
         if len(genes) != Chromosome.num_genes:
             raise ValueError("Number of genes does not match excpected value in class level variable.")
+        if "?" in Chromosome.terminals and Chromosome.ephemeral_random_constants_range is None:
+            raise ValueError("Must define ephemeral random constants range if using ephemeral random constants.")
 
         # initialize chromosomes
         self.genes = genes
         self.trees = []
         self._values_ = {}
         self._fitness_ = None
+        self.ephemeral_random_constants = list(np.random.uniform(*Chromosome.ephemeral_random_constants_range, size=Chromosome.length))
 
 
     # TODO - put informative error message when terminal_values doesn't have enough entries
@@ -72,10 +76,15 @@ class Chromosome:
         else:
             expression_tree = self.trees[0]
 
+        erc_index = 0
+
         # recursive inorder tree traversal
         def inorder(start: Node) -> float:
-            nonlocal terminal_values
+            nonlocal terminal_values, erc_index
             if start.name in Chromosome.terminals:
+                if start.name == "?":
+                    erc_index += 1
+                    return self.ephemeral_random_constants[erc_index - 1]
                 if start.name in Chromosome.constants:
                     return Chromosome.constants[start.name]
                 return int(start.name) if start.name.isdigit() else terminal_values[start.name]
@@ -116,10 +125,10 @@ class Chromosome:
             print("Tree %d" % t)
             for pre, _, node in RenderTree(self.trees[t]):
                 print("\t%s%s" % (pre, node.name))
-
+        print(self.ephemeral_random_constants)
 
     def plot_solution(self, objective_function, x_min: float, x_max: float,
-                      avg_fitnesses: list, best_fitnesses: list) -> None:
+                      avg_fitnesses: list, best_fitnesses: list, variable_name: str) -> None:
 
         """
         Mostly unused, handy for plotting symbolic regression results though
@@ -142,7 +151,7 @@ class Chromosome:
             plt.title("Discovered function vs. Objective function")
             plt.plot(xs, [objective_function(x) for x in xs],
                      linewidth=2, linestyle='dashed', color='black', label="Objective")
-            plt.plot(xs, [self.evaluate({"x": x}) for x in xs],
+            plt.plot(xs, [self.evaluate({variable_name: x}) for x in xs],
                      linewidth=2, color='blue', label="Discovered")
             plt.legend(loc="upper left")
 
@@ -291,7 +300,7 @@ class Chromosome:
     @staticmethod
     def inv_squared_error(*args) -> np.ndarray:
         """
-        Classical 1/(1+error) fitness value.
+        Classical 1/(1+(squared error) fitness value.
 
         :param args: list of chromosomes to calculate fitness of
         :return: ndarray of fitness values for each given chromosome

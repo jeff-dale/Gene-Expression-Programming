@@ -211,7 +211,15 @@ class GeneExpressionProgram:
             new_genes.append(new_gene)
 
         # create new chromosome to ensure memoized fitness values are recalculated.
-        return Chromosome(new_genes)
+        new_chromosome = Chromosome(new_genes)
+        new_chromosome.ephemeral_random_constants = chromosome.ephemeral_random_constants
+
+        # mutate ephemeral random constants
+        for constant in range(len(new_chromosome.ephemeral_random_constants)):
+            if random() < GeneExpressionProgram.MUTATION_RATE:
+                new_chromosome.ephemeral_random_constants[constant] = np.random.uniform(*Chromosome.ephemeral_random_constants_range)
+
+        return new_chromosome
 
 
     @staticmethod
@@ -222,6 +230,8 @@ class GeneExpressionProgram:
         :param chromosome: chromosome to perform IS transposition on
         :return: new chromosome
         """
+
+        # TODO - properly transpose ephemeral random constants
 
         if random() < GeneExpressionProgram.IS_TRANSPOSITION_RATE:
 
@@ -236,6 +246,7 @@ class GeneExpressionProgram:
 
             # make substitution
             new_chromosome = Chromosome(chromosome.genes)
+            new_chromosome.ephemeral_random_constants = chromosome.ephemeral_random_constants
             new_chromosome.genes[target_gene] = new_chromosome.genes[target_gene][:target_position] + \
                                                 transposition_string + \
                                                 new_chromosome.genes[target_gene][target_position + length:]
@@ -256,6 +267,8 @@ class GeneExpressionProgram:
         :return: new chromosome
         """
 
+        # TODO - properly transpose ephemeral random constants
+
         start_point = randint(0, Chromosome.head_length - 1)
         gene = randint(0, Chromosome.num_genes - 1)
         while start_point < Chromosome.head_length and chromosome.genes[gene][start_point] not in Chromosome.functions:
@@ -266,6 +279,7 @@ class GeneExpressionProgram:
             ris_string = chromosome.genes[gene][start_point:start_point+ris_length]
 
             new_chromosome = Chromosome(chromosome.genes)
+            new_chromosome.ephemeral_random_constants = chromosome.ephemeral_random_constants
             old_head = new_chromosome.genes[gene][:Chromosome.head_length]
             new_head = old_head[:start_point] + ris_string + old_head[start_point:]
             new_chromosome.genes[gene] = new_head[:Chromosome.head_length] + new_chromosome.genes[gene][Chromosome.head_length:]
@@ -286,13 +300,17 @@ class GeneExpressionProgram:
         :return: new chromosome
         """
 
+        # TODO - properly transpose ephemeral random constants
+
         if Chromosome.num_genes > 1 and random() < GeneExpressionProgram.GENE_TRANSPOSITION_RATE:
 
             index = randint(0, Chromosome.num_genes - 1)
             temp = chromosome.genes[index]
             chromosome.genes[index] = chromosome.genes[0]
             chromosome.genes[0] = temp
-            return Chromosome(chromosome.genes)
+            new_chromosome = Chromosome(chromosome.genes)
+            new_chromosome.ephemeral_random_constants = chromosome.ephemeral_random_constants
+            return new_chromosome
 
         else:
 
@@ -317,7 +335,16 @@ class GeneExpressionProgram:
         child1_genes = chromosome1.genes[:gene] + [child1_split_gene] + (chromosome2.genes[gene+1:] if gene < Chromosome.num_genes - 1 else [])
         child2_genes = chromosome2.genes[:gene] + [child2_split_gene] + (chromosome1.genes[gene + 1:] if gene < Chromosome.num_genes - 1 else [])
 
-        return Chromosome(child1_genes), Chromosome(child2_genes)
+        child1, child2 = Chromosome(child1_genes), Chromosome(child2_genes)
+
+        constants_split_position = randint(0, Chromosome.length - 1)
+        child1.ephemeral_random_constants = chromosome1.ephemeral_random_constants[:constants_split_position] + \
+                                            chromosome2.ephemeral_random_constants[constants_split_position:]
+
+        child2.ephemeral_random_constants = chromosome2.ephemeral_random_constants[:constants_split_position] + \
+                                            chromosome1.ephemeral_random_constants[constants_split_position:]
+
+        return child1, child2
 
 
     @staticmethod
@@ -345,7 +372,16 @@ class GeneExpressionProgram:
         child1_genes = [child1_genes[i:i + Chromosome.length] for i in range(0, Chromosome.num_genes * Chromosome.length, Chromosome.length)]
         child2_genes = [child2_genes[i:i + Chromosome.length] for i in range(0, Chromosome.num_genes * Chromosome.length, Chromosome.length)]
 
-        return Chromosome(child1_genes), Chromosome(child2_genes)
+        child1, child2 = Chromosome(child1_genes), Chromosome(child2_genes)
+        split_positions = sorted([randint(0, Chromosome.length - 1), randint(0, Chromosome.length - 1)])
+
+        child1.ephemeral_random_constants = chromosome1.ephemeral_random_constants[:split_positions[0]] + \
+                                            chromosome2.ephemeral_random_constants[split_positions[0]:split_positions[1]] + \
+                                            chromosome1.ephemeral_random_constants[split_positions[1]:]
+        child2.ephemeral_random_constants = chromosome2.ephemeral_random_constants[:split_positions[0]] + \
+                                            chromosome1.ephemeral_random_constants[split_positions[0]:split_positions[1]] + \
+                                            chromosome2.ephemeral_random_constants[split_positions[1]:]
+        return child1, child2
 
 
     @staticmethod
